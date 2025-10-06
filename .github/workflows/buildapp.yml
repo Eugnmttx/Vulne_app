@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install py_to_app
+        run: pip install git+https://github.com/<your-username>/py_to_app.git
       - name: Build app
         run: py_to_app .
       - name: Upload artifact
