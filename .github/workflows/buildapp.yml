@@ -1,27 +1,28 @@
-name: Build Cross Platform App
+name: Build Tkinter App
+
 on:
   push:
     branches: [ main ]
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-
+    runs-on: macos-latest   # for py_to_app (macOS GUI)
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Install dependencies
-        run: pip install git+https://github.com/Eugnmttx/py_to_app.git
+        run: pip install py_to_app
+
       - name: Build app
-        run: py_to_app .
+        run: py_to_app main.py --include image.png --name "MyApp"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: my_app_${{ matrix.os }}
+          name: MyApp-mac
           path: dist/
