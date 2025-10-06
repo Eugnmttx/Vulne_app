@@ -1,91 +1,168 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import betas_fitter
 import os
 from PIL import Image, ImageTk
-from tkinter import filedialog
 
 fig = None
 
+# --- Script functions ---
 def run_script():
     global fig
     try:
-        # Récupération des deux vecteurs depuis les champs texte
-        x_values = list(map(float, entry_x.get().split(",")))
-        y_values = list(map(float, entry_y.get().split(",")))
+        x_values = []
+        y_values = []
+        for child in table.get_children():
+            x, y = table.item(child)["values"]
+            x_values.append(float(x))
+            y_values.append(float(y))
 
-        # Nettoyer l'ancien tableau
-        for row in table.get_children():
-            table.delete(row)
-
-        if len(x_values) == len(y_values):
-            params, fig, ax = betas_fitter.fitter(x_values,y_values)
-        else: 
-            messagebox.showerror("Erreur", "Les deux vecteurs doivent avoir la même taille.")
+        if len(x_values) == len(y_values) and len(x_values) > 0:
+            params, fig, ax = betas_fitter.fitter(x_values, y_values)
+        else:
+            messagebox.showerror("Erreur", "Les colonnes doivent avoir la même taille et ne pas être vides.")
             return
-                
-        # Remplir le tableau avec les données
-        table.insert("", "end", values=(params[0], params[1], params[2], params[3]))
 
+        # Afficher les paramètres
+        param_table.delete(*param_table.get_children())
+        param_table.insert("", "end", values=(params[0], params[1], params[2], params[3]))
+
+        # Afficher le plot
         for widget in plot_frame.winfo_children():
-            widget.destroy()  # enlève ancien canvas
+            widget.destroy()
         canvas = FigureCanvasTkAgg(fig, master=plot_frame)
         canvas.get_tk_widget().pack(fill="both", expand=True)
         canvas.draw()
 
     except ValueError:
-        messagebox.showerror("Erreur", "Merci de rentrer uniquement des nombres séparés par des virgules.")
+        messagebox.showerror("Erreur", "Merci de rentrer uniquement des nombres valides.")
 
 def save_plot(fig):
     if fig is None:
         tk.messagebox.showerror("Erreur", "Aucun plot à sauvegarder !")
         return
 
-    # Ouvrir une boîte de dialogue pour choisir le fichier
     file_path = filedialog.asksaveasfilename(
         defaultextension=".png",
         filetypes=[("PNG files", "*.png"), ("All files", "*.*")]
     )
     if file_path:
-        fig.savefig(file_path)
+        # Standard size and high resolution
+        fig.set_size_inches(8, 6)  # largeur x hauteur en pouces
+        fig.savefig(file_path, dpi=300, bbox_inches="tight")
         tk.messagebox.showinfo("Succès", f"Plot sauvegardé sous {file_path}")
 
-# --- Interface Tkinter ---
+# --- Edit in-place for Treeview ---
+def on_double_click(event):
+    item = table.identify_row(event.y)
+    column = table.identify_column(event.x)
+    if not item or not column:
+        return
+    x, y, width, height = table.bbox(item, column)
+    value = table.set(item, column)
+
+    entry = tk.Entry(table)
+    entry.place(x=x, y=y, width=width, height=height)
+    entry.insert(0, value)
+    entry.focus()
+
+    def save_edit(event=None):
+        table.set(item, column, entry.get())
+        entry.destroy()
+
+    entry.bind("<Return>", save_edit)
+    entry.bind("<FocusOut>", save_edit)
+
+# --- Paste from Excel ---
+def paste_from_clipboard(event=None):
+    try:
+        clipboard = root.clipboard_get()
+        rows = clipboard.strip().split("\n")
+        table.delete(*table.get_children())  # clear existing rows
+        for row in rows:
+            values = row.split("\t")  # Excel usually copies tab-delimited
+            if len(values) >= 2:
+                table.insert("", "end", values=(values[0], values[1]))
+    except Exception as e:
+        messagebox.showerror("Erreur", f"Impossible de coller depuis le presse-papiers.\n{e}")
+
+# --- Add/Remove rows ---
+def add_row():
+    table.insert("", "end", values=("", ""))
+
+def remove_selected_row():
+    selected = table.selection()
+    for item in selected:
+        table.delete(item)
+
+# -- Get params to clipboard ---
+def copy_params_to_clipboard():
+    all_rows = []
+    for child in param_table.get_children():
+        values = param_table.item(child)["values"]
+        all_rows.append("\t".join(map(str, values)))
+    clipboard_text = "\n".join(all_rows)
+    root.clipboard_clear()
+    root.clipboard_append(clipboard_text)
+    root.update()  # assure que le clipboard est mis à jour
+    messagebox.showinfo("Succès", "Paramètres copiés dans le presse-papiers !")
+
+# --- Tkinter GUI ---
 root = tk.Tk()
 root.title("Beta fitter")
 root.geometry("1000x750")
 
+# Logo
 script_dir = os.path.dirname(os.path.abspath(__file__))
 logo_path = os.path.join(script_dir, "logo.png")
 img = Image.open(logo_path)
-img = img.resize((180, 100))  # width=50px, height=50px
+img = img.resize((180, 100))
 logo = ImageTk.PhotoImage(img)
 label_logo = tk.Label(root, image=logo)
 label_logo.pack(pady=3)
 
-# Entrées utilisateur
-tk.Label(root, text="Intensitées (séparées par ,)").pack(pady=5)
-entry_x = tk.Entry(root, width=50)
-entry_x.pack(pady=5)
-
-tk.Label(root, text="Valeurs Cumulées (séparées par ,)").pack(pady=5)
-entry_y = tk.Entry(root, width=50)
-entry_y.pack(pady=5)
-
-tk.Button(root, text="Générer", command=run_script).pack(pady=10)
-
-# Tableau (Treeview)
-columns = ("a", "b", "x min", "x max")
-table = ttk.Treeview(root, columns=columns, show="headings", height=2)
+# Input table
+tk.Label(root, text="Entrez vos valeurs X et Y (double-click pour éditer ou Ctrl+V pour coller depuis Excel)").pack(pady=5)
+columns = ("x", "y")
+table = ttk.Treeview(root, columns=columns, show="headings", height=10)
 for col in columns:
     table.heading(col, text=col)
-table.pack(pady=10)
+    table.column(col, width=100)
 
-tk.Button(root, text="Exporter le plot en PNG", command=lambda: save_plot(fig=fig)).pack(pady=10)
-# Graphique matplotlib intégré
+# Start with 2 empty rows
+for _ in range(2):
+    table.insert("", "end", values=("", ""))
+
+table.pack(pady=5, fill="x")
+table.bind("<Double-1>", on_double_click)
+root.bind_all("<Control-v>", paste_from_clipboard)  # Ctrl+V anywhere pastes into table
+
+# Add/remove row buttons
+row_frame = tk.Frame(root)
+row_frame.pack(pady=5)
+
+tk.Button(row_frame, text="Ajouter ligne", command=add_row).pack(side="left", padx=5)
+tk.Button(row_frame, text="Supprimer ligne(s)", command=remove_selected_row).pack(side="left", padx=5)
+tk.Button(row_frame, text="Supprimer tout", command=lambda: table.delete(*table.get_children())).pack(side="left", padx=5)
+
+# Generate button
+tk.Button(root, text="Générer", command=run_script).pack(pady=10)
+
+# Parameter table
+param_columns = ("a", "b", "x min", "x max")
+param_table = ttk.Treeview(root, columns=param_columns, show="headings", height=2)
+for col in param_columns:
+    param_table.heading(col, text=col)
+param_table.pack(pady=5)
+
+buttons_frame = tk.Frame(root)
+buttons_frame.pack(pady=5)
+tk.Button(root, text="Copier les paramètres", command=copy_params_to_clipboard).pack(padx=5)
+tk.Button(root, text="Exporter le plot en PNG", command=lambda: save_plot(fig=fig)).pack(padx=5)
+
+# Plot frame
 plot_frame = tk.Frame(root)
 plot_frame.pack(pady=10, fill="both", expand=True)
 

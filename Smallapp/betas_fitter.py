@@ -33,5 +33,6 @@ def fitter(xs, Fs):
                               loc=params[2], scale=params[3]), '-r',
             label="Beta CDF")
     ax.legend()
+    ax.grid('on')
     params[3] = params[3] + params[2]
     return params, fig, ax
