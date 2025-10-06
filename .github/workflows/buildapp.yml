@@ -3,8 +3,6 @@ name: Build Tkinter App
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
   build:
@@ -14,35 +12,31 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    # 1️⃣ Checkout the repository
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    # 2️⃣ Set up Python
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    # 3️⃣ Upgrade pip
-    - name: Upgrade pip
-      run: python -m pip install --upgrade pip
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
 
-    # 4️⃣ Install PyInstaller
-    - name: Install PyInstaller
-      run: pip install pyinstaller
+      - name: Install PyInstaller
+        run: pip install pyinstaller
 
-    # 5️⃣ Build the executable
-    - name: Build executable
-      run: |
-        # On Windows, use ; for --add-data separator
-        if [[ "$RUNNER_OS" == "Windows" ]]; then
-          pyinstaller --onefile --add-data "image.png;." main.py
-        else
-          pyinstaller --onefile --add-data "image.png:." main.py
+      # macOS/Linux build
+      - name: Build executable (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: pyinstaller --onefile --add-data "image.png:." main.py
 
-    # 6️⃣ Upload the built executable
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: MyApp-${{ matrix.os }}
-        path: dist/
+      # Windows build
+      - name: Build executable (Windows)
+        if: runner.os == 'Windows'
+        run: pyinstaller --onefile --add-data "image.png;." main.py
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyApp-${{ matrix.os }}
+          path: dist/
