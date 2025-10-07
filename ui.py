@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import betas_fitter
 import os
 from PIL import Image, ImageTk
+import csv
 
 fig = None
 
@@ -109,6 +110,55 @@ def copy_params_to_clipboard():
     root.update()  # assure que le clipboard est mis à jour
     messagebox.showinfo("Succès", "Paramètres copiés dans le presse-papiers !")
 
+# -- Import csv in table --
+def import_csv():
+    file_path = filedialog.askopenfilename(
+        title="Importer un fichier CSV",
+        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+    )
+    if not file_path:
+        return
+
+    try:
+        with open(file_path, newline="", encoding="utf-8") as csvfile:
+            # Détection automatique du séparateur
+            sample = csvfile.read(1024)
+            csvfile.seek(0)
+            dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t"])
+            reader = csv.reader(csvfile, dialect)
+            rows = list(reader)
+
+        if not rows:
+            messagebox.showerror("Erreur", "Le fichier CSV est vide.")
+            return
+
+        # Nettoyer la table existante
+        table.delete(*table.get_children())
+
+        def is_number(value):
+            """Vérifie si une valeur est numérique après conversion de la virgule en point."""
+            try:
+                float(value.replace(",", "."))
+                return True
+            except ValueError:
+                return False
+
+        # Déterminer si la première ligne est un en-tête
+        first_row = rows[0]
+        start_index = 1 if not all(is_number(v) for v in first_row[:2]) else 0
+
+        # Importer les deux premières colonnes en remplaçant les virgules par des points
+        for row in rows[start_index:]:
+            if len(row) >= 2:
+                x = row[0].strip().replace(",", ".")
+                y = row[1].strip().replace(",", ".")
+                table.insert("", "end", values=(x, y))
+
+        messagebox.showinfo("Succès", f"Importation réussie depuis {os.path.basename(file_path)}.")
+
+    except Exception as e:
+        messagebox.showerror("Erreur", f"Impossible de lire le fichier CSV :\n{e}")
+
 # --- Tkinter GUI ---
 root = tk.Tk()
 root.title("Beta fitter")
@@ -124,8 +174,8 @@ label_logo = tk.Label(root, image=logo)
 label_logo.pack(pady=3)
 
 # Input table
-tk.Label(root, text="Entrez vos valeurs X et Y (double-click pour éditer ou Ctrl+V pour coller depuis Excel)").pack(pady=5)
-columns = ("x", "y")
+tk.Label(root, text="Entrez vos valeurs d'intensité et de vulnerabilité (double-click pour éditer ou Ctrl+V pour coller depuis Excel)").pack(pady=5)
+columns = ("Intensité", "vulnérabilité")
 table = ttk.Treeview(root, columns=columns, show="headings", height=10)
 for col in columns:
     table.heading(col, text=col)
@@ -143,6 +193,7 @@ root.bind_all("<Control-v>", paste_from_clipboard)  # Ctrl+V anywhere pastes int
 row_frame = tk.Frame(root)
 row_frame.pack(pady=5)
 
+tk.Button(row_frame, text="Importer CSV", command=import_csv).pack(side="left", padx=5)
 tk.Button(row_frame, text="Ajouter ligne", command=add_row).pack(side="left", padx=5)
 tk.Button(row_frame, text="Supprimer ligne(s)", command=remove_selected_row).pack(side="left", padx=5)
 tk.Button(row_frame, text="Supprimer tout", command=lambda: table.delete(*table.get_children())).pack(side="left", padx=5)
