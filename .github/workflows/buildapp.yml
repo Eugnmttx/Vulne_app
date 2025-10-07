@@ -41,10 +41,15 @@ jobs:
           python -c "import matplotlib.pyplot as plt; plt.figure(); plt.plot(); plt.close()"
           
       # macOS/Linux build
-      - name: Build executable (macOS/Linux)
-        if: runner.os != 'Windows'
-        run: pyinstaller --onefile --windowed --add-data "logo.png:." --add-data "$HOME/.cache/matplotlib:matplotlib_cache" ui.py
-
+      - name: Build executable (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          CACHE_DIR=$(python -c "import matplotlib; print(matplotlib.get_cachedir())")
+          echo "Matplotlib cache: $CACHE_DIR"
+          pyinstaller --onedir --windowed \
+            --add-data "logo.png:." \
+            --add-data "$CACHE_DIR:matplotlib_cache" \
+            ui.py
       # Windows build
       - name: Build executable (Windows)
         if: runner.os == 'Windows'
