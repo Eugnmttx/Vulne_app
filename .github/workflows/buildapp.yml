@@ -48,7 +48,14 @@ jobs:
       # Windows build
       - name: Build executable (Windows)
         if: runner.os == 'Windows'
-        run: pyinstaller --onefile --noconsole --add-data "logo.png;." --add-data "%LOCALAPPDATA%\matplotlib;matplotlib_cache" ui.py
+        shell: pwsh
+        run: |
+          $cacheDir = python -c "import matplotlib; print(matplotlib.get_cachedir())"
+          echo "Matplotlib cache is at $cacheDir"
+          pyinstaller --onefile --noconsole `
+            --add-data "logo.png;." `
+            --add-data "$cacheDir;matplotlib_cache" `
+            ui.py
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
