@@ -1,5 +1,18 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+import os
+import sys
+
+# Determine path for PyInstaller bundle
+if getattr(sys, "frozen", False):
+    base_path = sys._MEIPASS
+else:
+    base_path = os.path.dirname(__file__)
+
+# Set Matplotlib to use local cache inside the bundle
+local_cache = os.path.join(base_path, "matplotlib_cache")
+os.environ["MPLCONFIGDIR"] = local_cache
+
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import betas_fitter
