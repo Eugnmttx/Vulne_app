@@ -30,7 +30,11 @@ jobs:
         run: |
           pip install pyinstaller
           pip install matplotlib pillow numpy scipy
-      
+          
+      - name: Pre-warm Matplotlib font cache
+        run: |
+          python -c "import matplotlib.pyplot as plt; plt.figure(); plt.plot(); plt.close()"
+          
       # macOS/Linux build
       - name: Build executable (macOS/Linux)
         if: runner.os != 'Windows'
