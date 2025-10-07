@@ -24,7 +24,12 @@ jobs:
 
       - name: Install PyInstaller
         run: pip install pyinstaller
-
+        
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller
+          pip install matplotlib pillow numpy scipy
+      
       # macOS/Linux build
       - name: Build executable (macOS/Linux)
         if: runner.os != 'Windows'
