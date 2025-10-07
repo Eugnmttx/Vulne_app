@@ -30,6 +30,11 @@ jobs:
         run: |
           pip install pyinstaller
           pip install matplotlib pillow numpy scipy
+
+      - name: Ensure Matplotlib cache folder exists
+        run: |
+          mkdir -p ~/.cache/matplotlib
+          mkdir -p ~/.matplotlib
           
       - name: Pre-warm Matplotlib font cache
         run: |
