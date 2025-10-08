@@ -23,13 +23,10 @@ jobs:
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
 
-      - name: Install PyInstaller
-        run: pip install pyinstaller
-        
       - name: Install dependencies
         run: |
           pip install pyinstaller
-          pip install matplotlib pillow numpy scipy
+          pip install matplotlib numpy scipy Pillow
 
       - name: Ensure Matplotlib cache folder exists
         run: |
@@ -39,10 +36,10 @@ jobs:
       - name: Pre-warm Matplotlib font cache
         run: |
           python -c "import matplotlib.pyplot as plt; plt.figure(); plt.plot(); plt.close()"
-          
+
       # macOS/Linux build
-      - name: Build executable (macOS)
-        if: runner.os == 'macOS'
+      - name: Build executable (macOS/Linux)
+        if: runner.os != 'Windows'
         run: |
           CACHE_DIR=$(python -c "import matplotlib; print(matplotlib.get_cachedir())")
           echo "Matplotlib cache: $CACHE_DIR"
@@ -50,6 +47,7 @@ jobs:
             --add-data "logo.png:." \
             --add-data "$CACHE_DIR:matplotlib_cache" \
             ui.py
+
       # Windows build
       - name: Build executable (Windows)
         if: runner.os == 'Windows'
