@@ -42,11 +42,10 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           CACHE_DIR=$(python -c "import matplotlib; print(matplotlib.get_cachedir())")
-          echo "Matplotlib cache: $CACHE_DIR"
           pyinstaller --onedir --windowed \
             --add-data "logo.png:." \
             --add-data "$CACHE_DIR:matplotlib_cache" \
-            --paths /path/to/beta_fitter \
+            --paths "./beta_fitter" \
             ui.py
 
       # Windows build
@@ -55,11 +54,10 @@ jobs:
         shell: pwsh
         run: |
           $cacheDir = python -c "import matplotlib; print(matplotlib.get_cachedir())"
-          echo "Matplotlib cache is at $cacheDir"
           pyinstaller --onefile --noconsole `
             --add-data "logo.png;." `
             --add-data "$cacheDir;matplotlib_cache" `
-            --paths /path/to/beta_fitter `
+            --paths ".\beta_fitter" `
             ui.py
 
       - name: Upload build artifacts
