@@ -150,7 +150,7 @@ def run_script():
     x_values, y_values = datasets[name]
 
     try:
-        params, fig, ax = betass_fitter.fitter(x_values, y_values, name)
+        params, fig, ax = betas_fitter.fitter(x_values, y_values, name)
         param_table.delete(*param_table.get_children())
         param_table.insert("", "end", values=(params[0], params[1], params[2], params[3]))
 
