@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
-import beta_fitter
+import betas_fitter
 import os
 from PIL import Image, ImageTk
 import csv
@@ -150,7 +150,7 @@ def run_script():
     x_values, y_values = datasets[name]
 
     try:
-        params, fig, ax = beta_fitter.fitter(x_values, y_values, name)
+        params, fig, ax = betass_fitter.fitter(x_values, y_values, name)
         param_table.delete(*param_table.get_children())
         param_table.insert("", "end", values=(params[0], params[1], params[2], params[3]))
 
@@ -311,7 +311,7 @@ def replot_manual():
     x_values, y_values = datasets[name]
 
     try:
-        fig = beta_fitter.manual_fig(current_params, x_values, y_values, name)
+        fig = betas_fitter.manual_fig(current_params, x_values, y_values, name)
         for widget in plot_frame.winfo_children():
             widget.destroy()
         canvas = FigureCanvasTkAgg(fig, master=plot_frame)
