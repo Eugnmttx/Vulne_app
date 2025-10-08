@@ -59,7 +59,7 @@ jobs:
           pyinstaller --onefile --noconsole `
             --add-data "logo.png;." `
             --add-data "$cacheDir;matplotlib_cache" `
-            --paths /path/to/beta_fitter \ `
+            --paths /path/to/beta_fitter `
             ui.py
 
       - name: Upload build artifacts
