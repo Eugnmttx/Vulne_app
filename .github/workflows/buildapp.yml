@@ -45,7 +45,7 @@ jobs:
           pyinstaller --onedir --windowed \
             --add-data "logo.png:." \
             --add-data "$CACHE_DIR:matplotlib_cache" \
-            --paths "./beta_fitter" \
+            --paths "./betas_fitter" \
             ui.py
 
       # Windows build
@@ -57,7 +57,7 @@ jobs:
           pyinstaller --onefile --noconsole `
             --add-data "logo.png;." `
             --add-data "$cacheDir;matplotlib_cache" `
-            --paths ".\beta_fitter" `
+            --paths ".\betas_fitter" `
             ui.py
 
       - name: Upload build artifacts
