@@ -7,6 +7,10 @@ import os
 from PIL import Image, ImageTk
 import csv
 import sys
+import io
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+import webbrowser
+import subprocess
 
 fig = None
 datasets = {}   # name -> (x_values, y_values)
@@ -26,7 +30,7 @@ def import_csv_multi():
     """Import CSV et détecte automatiquement si format par lignes ou par colonnes."""
     global datasets, dataset_names, current_index
     file_path = filedialog.askopenfilename(
-        title="Importer un fichier CSV (multi-datasets en lignes ou colonnes)",
+        title="Import CSV file (per rows or columns)",
         filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
     )
     if not file_path:
@@ -41,7 +45,7 @@ def import_csv_multi():
             rows = [list(map(str.strip, r)) for r in reader if any(r)]
 
         if not rows:
-            messagebox.showerror("Erreur", "Le fichier CSV est vide.")
+            messagebox.showerror("Error", "The CSV file is empty.")
             return
 
         # --- Détection du format ---
@@ -83,19 +87,19 @@ def import_csv_multi():
                     datasets[name] = (x_vals, y_vals)
 
         if not datasets:
-            messagebox.showerror("Erreur", "Aucun dataset valide trouvé.")
+            messagebox.showerror("Error", "No valid dataset found.")
             return
 
         dataset_names = list(datasets.keys())
         current_index = 0
         show_current_dataset()
         messagebox.showinfo(
-            "Importation réussie",
-            f"{len(datasets)} jeux de données détectés ({'colonnes' if is_column_oriented else 'lignes'})."
+            "Importation successful",
+            f"{len(datasets)} datasets detected ({'columns' if is_column_oriented else 'rows'})."
         )
 
     except Exception as e:
-        messagebox.showerror("Erreur", f"Impossible de lire le CSV :\n{e}")
+        messagebox.showerror("Error", f"Impossible to read CSV :\n{e}")
 
 # -- Ajouter une ligne manuellement --
 def add_row():
@@ -145,7 +149,7 @@ def next_dataset():
 def run_script():
     global fig
     if not dataset_names:
-        messagebox.showerror("Erreur", "Aucun dataset importé.")
+        messagebox.showerror("Error", "No dataset imported.")
         return
     name = dataset_names[current_index]
     x_values, y_values = datasets[name]
@@ -161,12 +165,12 @@ def run_script():
         canvas.get_tk_widget().pack(fill="both", expand=True)
         canvas.draw()
     except Exception as e:
-        messagebox.showerror("Erreur", f"Erreur de génération : {e}")
+        messagebox.showerror("Error", f"Generating error : {e}")
 
 # --- Sauvegarde du plot ---
 def save_plot(fig):
     if fig is None:
-        messagebox.showerror("Erreur", "Aucun plot à sauvegarder !")
+        messagebox.showerror("Error", "No plot to save !")
         return
     file_path = filedialog.asksaveasfilename(
         defaultextension=".png",
@@ -175,7 +179,7 @@ def save_plot(fig):
     if file_path:
         fig.set_size_inches(8, 6)
         fig.savefig(file_path, dpi=300, bbox_inches="tight")
-        messagebox.showinfo("Succès", f"Plot sauvegardé sous {file_path}")
+        messagebox.showinfo("Success", f"Plot saved at {file_path}")
 
 # --- Copier les paramètres ---
 def copy_params_to_clipboard():
@@ -187,7 +191,7 @@ def copy_params_to_clipboard():
     root.clipboard_clear()
     root.clipboard_append(clipboard_text)
     root.update()
-    messagebox.showinfo("Succès", "Paramètres copiés dans le presse-papiers !")
+    messagebox.showinfo("Success", "Parameters copied in the clipboard !")
 
 # -- Modifier les cellules manuellement --
 def edit_cell(tree, event):
@@ -220,7 +224,7 @@ def edit_cell(tree, event):
             try:
                 new_val_float = float(new_val.replace(',', '.'))
             except ValueError:
-                messagebox.showerror("Erreur", f"Valeur non numérique : {new_val}")
+                messagebox.showerror("Error", f"Non numerical value : {new_val}")
                 return
 
             # If editing a new row, append to the list
@@ -276,7 +280,7 @@ def edit_param_cell(event):
         try:
             fval = float(new_val.replace(',', '.'))
         except ValueError:
-            messagebox.showerror("Erreur", f"Valeur non numérique : {new_val}")
+            messagebox.showerror("Errorr", f"Non numerical value : {new_val}")
             return
         param_table.set(item_id, column, new_val)
         current_params[col_index] = fval  # update current_params
@@ -303,7 +307,7 @@ def save_param_edits():
 def replot_manual():
     global fig
     if not dataset_names:
-        messagebox.showerror("Erreur", "Aucun dataset importé.")
+        messagebox.showerror("Errorr", "No data was imported.")
         return
 
     save_param_edits()  # <-- force la lecture de toutes les cellules éditées
@@ -319,11 +323,11 @@ def replot_manual():
         canvas.get_tk_widget().pack(fill="both", expand=True)
         canvas.draw()
     except Exception as e:
-        messagebox.showerror("Erreur", f"Erreur lors du replot : {e}")
+        messagebox.showerror("Errorr", f"Error while plotting : {e}")
 
 # --- Interface Tkinter ---
 root = tk.Tk()
-root.title("Beta fitter - Multi dataset viewer")
+root.title("Beta fitter")
 
 # Fenêtre redimensionnable
 root.geometry("1000x750")
@@ -397,16 +401,16 @@ if os.path.exists(logo_path):
     tk.Label(scrollable_frame, image=logo).pack(pady=3)
 
 # Bouton import
-tk.Button(scrollable_frame, text="📂 Importer CSV", command=import_csv_multi).pack(pady=5)
+tk.Button(scrollable_frame, text="📂 Import CSV", command=import_csv_multi).pack(pady=5)
 
 # Navigation dataset
 nav_frame = tk.Frame(scrollable_frame)
 nav_frame.pack(pady=5)
 tk.Button(nav_frame, text="◀", command=prev_dataset, width=4).pack(side="left", padx=5)
-dataset_label = tk.Label(nav_frame, text="Aucun dataset")
+dataset_label = tk.Label(nav_frame, text="No dataset")
 dataset_label.pack(side="left", padx=10)
 tk.Button(nav_frame, text="▶", command=next_dataset, width=4).pack(side="left", padx=5)
-tk.Button(scrollable_frame, text="Ajouter ligne", command=add_row).pack(pady=5)
+tk.Button(scrollable_frame, text="Add row", command=add_row).pack(pady=5)
 
 # Tableau de données
 columns = ("x", "y")
@@ -418,7 +422,7 @@ data_table.pack(pady=5)
 data_table.bind("<Double-1>", lambda e: edit_cell(data_table, e))
 
 # Bouton générer
-tk.Button(scrollable_frame, text="Générer le plot", command=run_script).pack(pady=10)
+tk.Button(scrollable_frame, text="Generate plot", command=run_script).pack(pady=10)
 
 # Tableau des paramètres
 param_columns = ("a", "b", "x min", "x max")
@@ -427,17 +431,80 @@ for col in param_columns:
     param_table.heading(col, text=col)
 param_table.pack(pady=5)
 param_table.bind("<Double-1>", edit_param_cell)
-tk.Button(scrollable_frame, text="Replot avec paramètres modifiés", command=replot_manual).pack(pady=5)
+tk.Button(scrollable_frame, text="Plot with modified parameters", command=replot_manual).pack(pady=5)
 
 # Boutons copier/export
 btn_frame = tk.Frame(scrollable_frame)
 btn_frame.pack(pady=5)
-tk.Button(btn_frame, text="Copier paramètres", command=copy_params_to_clipboard).pack(side="left", padx=5)
-tk.Button(btn_frame, text="Exporter le plot", command=lambda: save_plot(fig)).pack(side="left", padx=5)
+tk.Button(btn_frame, text="Copy parameters", command=copy_params_to_clipboard).pack(side="left", padx=5)
+tk.Button(btn_frame, text="Export plot", command=lambda: save_plot(fig)).pack(side="left", padx=5)
 
 # Zone plot
 plot_frame = tk.Frame(scrollable_frame)
 plot_frame.pack(pady=10, fill="both", expand=True)
 
+# -- Help window --
+def open_help_window():
+    """Ouvre une fenêtre d'aide avec du texte et des formules LaTeX."""
+    help_win = tk.Toplevel(root)
+    help_win.title("Guide - Beta fitter")
+    help_win.geometry("800x300")
+
+    # --- Scrollable Frame pour le texte ---
+    canvas = tk.Canvas(help_win)
+    scrollbar = ttk.Scrollbar(help_win, orient="vertical", command=canvas.yview)
+    scroll_frame = ttk.Frame(canvas)
+
+    scroll_frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
+
+    canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+
+    # --- Contenu textuel ---
+    intro = (
+        "Welcome in Beta fitter\n"
+        "This app fits experimental data with a cumulative beta distribution function.\n"
+        "Here are a few details for usage:\n\n"
+        "(1) For importation, the file can be either sorted by row or by column. Each row (column) must look like: ['header', I_1, ..., I_N, V_1, ..., V_N] where I_i, V_i are respectively the intensities and the vulnerabilities.\n\n"
+        "(2) You can naviguate your data set with the arrows, and manually modify the content of the data by double-clicking on a cell.\n\n"
+        "(3) Once you've plotted your graph, you can modify the parameters of the fit and re-generate the plot to see how the distribution reacts.\n\n"
+
+        "For further details about the fitting algorithm or the mathematical context click here: "
+    )
+
+    tk.Label(scroll_frame, text=intro, justify="left", wraplength=760).pack(pady=10, padx=10)
+    
+    def open_help_pdf():
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        pdf_path = os.path.join(script_dir, "details.pdf")
+
+        if not os.path.exists(pdf_path):
+            messagebox.showerror("Erreur", f"Le fichier PDF {pdf_path} est introuvable.")
+            return
+
+        try:
+            if sys.platform.startswith("darwin"):  # macOS
+                subprocess.call(["open", pdf_path])
+            elif os.name == "nt":  # Windows
+                os.startfile(pdf_path)
+            elif os.name == "posix":  # Linux and others
+                subprocess.call(["xdg-open", pdf_path])
+            else:
+                # Fallback to webbrowser if none of the above works
+                import webbrowser
+                webbrowser.open_new(pdf_path)
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Impossible d'ouvrir le fichier PDF : {e}")
+
+    # --- Button in main window ---
+    tk.Button(scroll_frame, text="Mathematical details", command=open_help_pdf).pack(pady=5)
+
+# --- Bouton pour ouvrir le guide ---
+tk.Button(root, text="Help", command=open_help_window).pack(pady=5)
 # --------------------------------------------------------
 root.mainloop()
