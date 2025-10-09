@@ -6,6 +6,7 @@ import betas_fitter
 import os
 from PIL import Image, ImageTk
 import csv
+import sys
 
 fig = None
 datasets = {}   # name -> (x_values, y_values)
@@ -323,7 +324,69 @@ def replot_manual():
 # --- Interface Tkinter ---
 root = tk.Tk()
 root.title("Beta fitter - Multi dataset viewer")
+
+# Fenêtre redimensionnable
 root.geometry("1000x750")
+root.minsize(900, 650)
+
+# --- Canvas + Scrollbar verticale ---
+main_frame = tk.Frame(root)
+main_frame.pack(fill="both", expand=True)
+
+canvas = tk.Canvas(main_frame, highlightthickness=0)
+canvas.pack(side="left", fill="both", expand=True)
+
+scrollbar_y = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+scrollbar_y.pack(side="right", fill="y")
+
+canvas.configure(yscrollcommand=scrollbar_y.set)
+
+# --- Frame interne (interface principale) ---
+scrollable_frame = tk.Frame(canvas)
+# Création correcte de la fenêtre dans le canvas
+canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="n")
+
+# Ajuste la zone scrollable quand le contenu change
+def update_scrollregion(event=None):
+    canvas.configure(scrollregion=canvas.bbox("all"))
+    # Centre horizontalement si la fenêtre est plus large
+    canvas.itemconfig(canvas_window, width=canvas.winfo_width())
+
+scrollable_frame.bind("<Configure>", update_scrollregion)
+
+# -- Fonction de scroll
+def _on_mousewheel(event):
+    """
+    Cross-platform mouse wheel handler.
+    - Windows: event.delta is multiple of 120
+    - macOS:   event.delta is small (1/-1)
+    - Linux:   use Button-4 (up) / Button-5 (down)
+    """
+    # Linux (X11) uses Button-4/5 (no event.delta)
+    if hasattr(event, "num") and event.num in (4, 5):
+        if event.num == 4:
+            canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            canvas.yview_scroll(1, "units")
+        return
+
+    # Otherwise we have event.delta (Windows / macOS)
+    delta = event.delta
+    if sys.platform == "darwin":
+        # On macOS delta is typically small (1 or -1) — use directly
+        canvas.yview_scroll(int(-1 * delta), "units")
+    else:
+        # On Windows delta is multiple of 120
+        canvas.yview_scroll(int(-1 * (delta / 120)), "units")
+
+# Bind globally so the scrolling works whatever has the focus
+root.bind_all("<MouseWheel>", _on_mousewheel, add="+")   # Windows / macOS
+root.bind_all("<Button-4>", _on_mousewheel, add="+")     # Linux scroll up
+root.bind_all("<Button-5>", _on_mousewheel, add="+")     # Linux scroll down
+
+# --------------------------------------------------------
+#                CONTENU DE L'INTERFACE
+# --------------------------------------------------------
 
 # Logo
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -331,23 +394,23 @@ logo_path = os.path.join(script_dir, "logo.png")
 if os.path.exists(logo_path):
     img = Image.open(logo_path).resize((180, 100))
     logo = ImageTk.PhotoImage(img)
-    tk.Label(root, image=logo).pack(pady=3)
+    tk.Label(scrollable_frame, image=logo).pack(pady=3)
 
 # Bouton import
-tk.Button(root, text="📂 Importer CSV", command=import_csv_multi).pack(pady=5)
+tk.Button(scrollable_frame, text="📂 Importer CSV", command=import_csv_multi).pack(pady=5)
 
-# Zone dataset
-nav_frame = tk.Frame(root)
+# Navigation dataset
+nav_frame = tk.Frame(scrollable_frame)
 nav_frame.pack(pady=5)
 tk.Button(nav_frame, text="◀", command=prev_dataset, width=4).pack(side="left", padx=5)
 dataset_label = tk.Label(nav_frame, text="Aucun dataset")
 dataset_label.pack(side="left", padx=10)
 tk.Button(nav_frame, text="▶", command=next_dataset, width=4).pack(side="left", padx=5)
-tk.Button(root, text="Ajouter ligne", command=add_row).pack(pady=5)
+tk.Button(scrollable_frame, text="Ajouter ligne", command=add_row).pack(pady=5)
 
 # Tableau de données
 columns = ("x", "y")
-data_table = ttk.Treeview(root, columns=columns, show="headings", height=10)
+data_table = ttk.Treeview(scrollable_frame, columns=columns, show="headings", height=10)
 for col in columns:
     data_table.heading(col, text=col)
     data_table.column(col, width=120)
@@ -355,25 +418,26 @@ data_table.pack(pady=5)
 data_table.bind("<Double-1>", lambda e: edit_cell(data_table, e))
 
 # Bouton générer
-tk.Button(root, text="Générer le plot", command=run_script).pack(pady=10)
+tk.Button(scrollable_frame, text="Générer le plot", command=run_script).pack(pady=10)
 
-# Tableau paramètres
+# Tableau des paramètres
 param_columns = ("a", "b", "x min", "x max")
-param_table = ttk.Treeview(root, columns=param_columns, show="headings", height=2)
+param_table = ttk.Treeview(scrollable_frame, columns=param_columns, show="headings", height=2)
 for col in param_columns:
     param_table.heading(col, text=col)
 param_table.pack(pady=5)
 param_table.bind("<Double-1>", edit_param_cell)
-tk.Button(root, text="Replot avec paramètres modifiés", command=replot_manual).pack(pady=5)
+tk.Button(scrollable_frame, text="Replot avec paramètres modifiés", command=replot_manual).pack(pady=5)
 
 # Boutons copier/export
-btn_frame = tk.Frame(root)
+btn_frame = tk.Frame(scrollable_frame)
 btn_frame.pack(pady=5)
 tk.Button(btn_frame, text="Copier paramètres", command=copy_params_to_clipboard).pack(side="left", padx=5)
 tk.Button(btn_frame, text="Exporter le plot", command=lambda: save_plot(fig)).pack(side="left", padx=5)
 
 # Zone plot
-plot_frame = tk.Frame(root)
+plot_frame = tk.Frame(scrollable_frame)
 plot_frame.pack(pady=10, fill="both", expand=True)
 
+# --------------------------------------------------------
 root.mainloop()
