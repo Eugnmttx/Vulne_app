@@ -63,6 +63,7 @@ jobs:
           ls -lh "$PDF_PATH" "$LOGO_PATH"
 
           pyinstaller --onedir --windowed \
+            --add-data ".:." \
             --add-data "$LOGO_PATH:." \
             --add-data "$PDF_PATH:." \
             --add-data "$CACHE_DIR:matplotlib_cache" \
@@ -84,6 +85,7 @@ jobs:
           Get-Item $pdfPath, $logoPath
       
           pyinstaller --onefile --noconsole `
+            --add-data ".:." `
             --add-data "$logoPath;." `
             --add-data "$pdfPath;." `
             --add-data "$cacheDir;matplotlib_cache" `
