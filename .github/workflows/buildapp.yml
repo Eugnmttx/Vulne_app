@@ -44,6 +44,7 @@ jobs:
           CACHE_DIR=$(python -c "import matplotlib; print(matplotlib.get_cachedir())")
           pyinstaller --onedir --windowed \
             --add-data "logo.png:." \
+            --add-data "details.pdf:." \
             --add-data "$CACHE_DIR:matplotlib_cache" \
             --paths "./betas_fitter" \
             ui.py
@@ -56,6 +57,7 @@ jobs:
           $cacheDir = python -c "import matplotlib; print(matplotlib.get_cachedir())"
           pyinstaller --onefile --noconsole `
             --add-data "logo.png;." `
+            --add-data "details.pdf;." `
             --add-data "$cacheDir;matplotlib_cache" `
             --paths ".\betas_fitter" `
             ui.py
