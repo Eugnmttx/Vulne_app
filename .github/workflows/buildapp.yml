@@ -27,7 +27,8 @@ jobs:
         run: |
           pip install pyinstaller
           pip install matplotlib numpy scipy Pillow
-
+          
+      # Handle matplotlib cache for quick opening
       - name: Ensure Matplotlib cache folder exists
         run: |
           mkdir -p ~/.cache/matplotlib
@@ -37,6 +38,15 @@ jobs:
         run: |
           python -c "import matplotlib.pyplot as plt; plt.figure(); plt.plot(); plt.close()"
 
+      # Handle pdf exportation    
+      - name: Check that details.pdf exists
+        run: ls -l details.pdf
+
+      - name: Disable Git line-ending normalization
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+        
       # macOS/Linux build
       - name: Build executable (macOS/Linux)
         if: runner.os != 'Windows'
