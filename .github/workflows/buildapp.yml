@@ -46,17 +46,26 @@ jobs:
         run: git config --global core.autocrlf false
 
       - uses: actions/checkout@v4
-        
-      # macOS/Linux build
-      - name: Build executable (macOS/Linux)
-        if: runner.os != 'Windows'
+
+      # Mac os build 
+      - name: Build executable (macOS)
+        if: runner.os == 'macOS'
         run: |
           CACHE_DIR=$(python -c "import matplotlib; print(matplotlib.get_cachedir())")
+          PDF_PATH="$(pwd)/details.pdf"
+          LOGO_PATH="$(pwd)/logo.png"
+      
+          echo "Matplotlib cache: $CACHE_DIR"
+          echo "PDF path: $PDF_PATH"
+          echo "Logo path: $LOGO_PATH"
+      
+          # Verify files exist
+          ls -lh "$PDF_PATH" "$LOGO_PATH"
+
           pyinstaller --onedir --windowed \
-            --add-data "logo.png:." \
-            --add-data "details.pdf:." \
+            --add-data "$LOGO_PATH:." \
+            --add-data "$PDF_PATH:." \
             --add-data "$CACHE_DIR:matplotlib_cache" \
-            --paths "./betas_fitter" \
             ui.py
 
       # Windows build
@@ -65,11 +74,19 @@ jobs:
         shell: pwsh
         run: |
           $cacheDir = python -c "import matplotlib; print(matplotlib.get_cachedir())"
+          $pdfPath = Join-Path $pwd "details.pdf"
+          $logoPath = Join-Path $pwd "logo.png"
+      
+          Write-Host "Matplotlib cache: $cacheDir"
+          Write-Host "PDF path: $pdfPath"
+          Write-Host "Logo path: $logoPath"
+
+          Get-Item $pdfPath, $logoPath
+      
           pyinstaller --onefile --noconsole `
-            --add-data "logo.png;." `
-            --add-data "details.pdf;." `
+            --add-data "$logoPath;." `
+            --add-data "$pdfPath;." `
             --add-data "$cacheDir;matplotlib_cache" `
-            --paths ".\betas_fitter" `
             ui.py
 
       - name: Upload build artifacts
