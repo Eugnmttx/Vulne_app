@@ -12,6 +12,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 import webbrowser
 import subprocess
 
+# Variables globales
 fig = None
 datasets = {}   # name -> (x_values, y_values)
 dataset_names = []
@@ -155,7 +156,7 @@ def run_script():
     x_values, y_values = datasets[name]
 
     try:
-        params, fig, ax = betas_fitter.fitter(x_values, y_values, name)
+        params, fig, ax = betas_fitter.fitter(x_values, y_values, name, x_label=x_label_var.get(), y_label=y_label_var.get(), plot_error=plot_error.get())
         param_table.delete(*param_table.get_children())
         param_table.insert("", "end", values=(params[0], params[1], params[2], params[3]))
 
@@ -303,11 +304,12 @@ def save_param_edits():
             current_params[col_index] = float(val.replace(',', '.'))
         except ValueError:
             current_params[col_index] = 0  # fallback si valeur invalide
+            
 # -- Live replotting of the fig -- 
 def replot_manual():
     global fig
     if not dataset_names:
-        messagebox.showerror("Errorr", "No data was imported.")
+        messagebox.showerror("Error", "No data was imported.")
         return
 
     save_param_edits()  # <-- force la lecture de toutes les cellules éditées
@@ -316,14 +318,14 @@ def replot_manual():
     x_values, y_values = datasets[name]
 
     try:
-        fig = betas_fitter.manual_fig(current_params, x_values, y_values, name)
+        fig = betas_fitter.manual_fig(current_params, x_values, y_values, name, x_label=x_label_var.get(), y_label=y_label_var.get(), plot_error=plot_error.get())
         for widget in plot_frame.winfo_children():
             widget.destroy()
         canvas = FigureCanvasTkAgg(fig, master=plot_frame)
         canvas.get_tk_widget().pack(fill="both", expand=True)
         canvas.draw()
     except Exception as e:
-        messagebox.showerror("Errorr", f"Error while plotting : {e}")
+        messagebox.showerror("Error", f"Error while plotting : {e}")
 
 # --- Interface Tkinter ---
 root = tk.Tk()
@@ -421,8 +423,29 @@ for col in columns:
 data_table.pack(pady=5)
 data_table.bind("<Double-1>", lambda e: edit_cell(data_table, e))
 
+# Label of axes
+axis_container = tk.Frame(scrollable_frame)
+axis_container.pack(pady=10, fill='x')
+
+axis_frame = tk.LabelFrame(axis_container, text="Axes labels", padx=10, pady=5)
+axis_frame.pack(anchor="center")  # <-- Center the frame horizontally
+
+tk.Label(axis_frame, text="X-axis label:").grid(row=0, column=0, sticky="e", padx=5, pady=3)
+x_label_var = tk.StringVar(value=None)
+x_label_entry = tk.Entry(axis_frame, textvariable=x_label_var, width=30, justify="center")
+x_label_entry.grid(row=0, column=1, padx=5, pady=3)
+
+tk.Label(axis_frame, text="Y-axis label:").grid(row=1, column=0, sticky="e", padx=5, pady=3)
+y_label_var = tk.StringVar(value=None)
+y_label_entry = tk.Entry(axis_frame, textvariable=y_label_var, width=30, justify="center")
+y_label_entry.grid(row=1, column=1, padx=5, pady=3)
+
 # Bouton générer
-tk.Button(scrollable_frame, text="Generate plot", command=run_script).pack(pady=10)
+generate_frame = tk.Frame(scrollable_frame)
+generate_frame.pack(pady=5)
+plot_error = tk.BooleanVar(value=True)
+tk.Checkbutton(generate_frame, text="Plot with error", variable=plot_error).pack(side="left", padx=5)
+tk.Button(generate_frame, text="Generate plot", command=run_script).pack(side="right", padx=5)
 
 # Tableau des paramètres
 param_columns = ("a", "b", "x min", "x max")
@@ -431,7 +454,10 @@ for col in param_columns:
     param_table.heading(col, text=col)
 param_table.pack(pady=5)
 param_table.bind("<Double-1>", edit_param_cell)
-tk.Button(scrollable_frame, text="Plot with modified parameters", command=replot_manual).pack(pady=5)
+
+btn_param_frame = tk.Frame(scrollable_frame)
+btn_param_frame.pack(pady=5)
+tk.Button(btn_param_frame, text="Plot with modified parameters", command=replot_manual).pack(side="left",padx=5)
 
 # Boutons copier/export
 btn_frame = tk.Frame(scrollable_frame)
