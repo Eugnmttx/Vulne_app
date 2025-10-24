@@ -534,3 +534,8 @@ def open_help_window():
 tk.Button(root, text="Help", command=open_help_window).pack(pady=5)
 # --------------------------------------------------------
 root.mainloop()
+
+if __name__ == "__main__":
+    # Protection pour les exécutables Windows (PyInstaller)
+    import multiprocessing
+    multiprocessing.freeze_support()
