@@ -156,9 +156,9 @@ def run_script():
     x_values, y_values = datasets[name]
 
     try:
-        params, fig, ax = betas_fitter.fitter(x_values, y_values, name, x_label=x_label_var.get(), y_label=y_label_var.get(), plot_error=plot_error.get())
+        params, fig, ax = betas_fitter.fitter(x_values, y_values, name, x_label=x_label_var.get(), y_label=y_label_var.get(), plot_error=plot_error.get(), log_scale=log_scale.get(), minmax=minmax.get())
         param_table.delete(*param_table.get_children())
-        param_table.insert("", "end", values=(params[0], params[1], params[2], params[3]))
+        param_table.insert("", "end", values=("fit", params[0], params[1], params[2], params[3]))
 
         for widget in plot_frame.winfo_children():
             widget.destroy()
@@ -318,7 +318,7 @@ def replot_manual():
     x_values, y_values = datasets[name]
 
     try:
-        fig = betas_fitter.manual_fig(current_params, x_values, y_values, name, x_label=x_label_var.get(), y_label=y_label_var.get(), plot_error=plot_error.get())
+        fig = betas_fitter.manual_fig(current_params, x_values, y_values, name, x_label=x_label_var.get(), y_label=y_label_var.get(), plot_error=plot_error.get(), log_scale=log_scale.get(), minmax=minmax.get())
         for widget in plot_frame.winfo_children():
             widget.destroy()
         canvas = FigureCanvasTkAgg(fig, master=plot_frame)
@@ -434,6 +434,8 @@ tk.Label(axis_frame, text="X-axis label:").grid(row=0, column=0, sticky="e", pad
 x_label_var = tk.StringVar(value=None)
 x_label_entry = tk.Entry(axis_frame, textvariable=x_label_var, width=30, justify="center")
 x_label_entry.grid(row=0, column=1, padx=5, pady=3)
+log_scale = tk.BooleanVar(value=False)
+tk.Checkbutton(axis_frame, text="Log scale", variable=log_scale).grid(row=0, column=4, sticky="e", padx=5, pady=3)
 
 tk.Label(axis_frame, text="Y-axis label:").grid(row=1, column=0, sticky="e", padx=5, pady=3)
 y_label_var = tk.StringVar(value=None)
@@ -444,14 +446,18 @@ y_label_entry.grid(row=1, column=1, padx=5, pady=3)
 generate_frame = tk.Frame(scrollable_frame)
 generate_frame.pack(pady=5)
 plot_error = tk.BooleanVar(value=True)
+minmax = tk.BooleanVar(value=False)
 tk.Checkbutton(generate_frame, text="Plot with error", variable=plot_error).pack(side="left", padx=5)
+tk.Checkbutton(generate_frame, text="Plot with Min-Max", variable=minmax).pack(side="left", padx=5)
 tk.Button(generate_frame, text="Generate plot", command=run_script).pack(side="right", padx=5)
 
 # Tableau des paramètres
-param_columns = ("a", "b", "x min", "x max")
-param_table = ttk.Treeview(scrollable_frame, columns=param_columns, show="headings", height=2)
+param_columns = ("","a", "b", "x min", "x max")
+param_table = ttk.Treeview(scrollable_frame, columns=param_columns, show="headings", height=1)
 for col in param_columns:
     param_table.heading(col, text=col)
+    w = 50 if col == "" else 80
+    param_table.column(col, width=w, anchor="center", stretch=True)
 param_table.pack(pady=5)
 param_table.bind("<Double-1>", edit_param_cell)
 
