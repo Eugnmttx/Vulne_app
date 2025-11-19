@@ -117,6 +117,36 @@ def add_row():
     # Add empty row to Treeview
     data_table.insert("", "end", values=("", ""))
 
+# -- Enlever une ligne manuellement --
+def delete_row():
+    global datasets, dataset_names, current_index
+
+    if not dataset_names:
+        messagebox.showerror("Error", "No dataset loaded.")
+        return
+
+    name = dataset_names[current_index]
+    x_vals, y_vals = datasets[name]
+
+    selected = data_table.selection()
+    if not selected:
+        messagebox.showwarning("Warning", "No row selected.")
+        return
+
+    item_id = selected[0]
+    row_index = data_table.index(item_id)
+
+    # Remove from Treeview
+    data_table.delete(item_id)
+
+    # Remove from internal data
+    if row_index < len(x_vals):
+        x_vals.pop(row_index)
+    if row_index < len(y_vals):
+        y_vals.pop(row_index)
+
+    datasets[name] = (x_vals, y_vals)
+
 # --- Affichage d'un dataset dans le tableau ---
 def show_current_dataset():
     if not dataset_names:
@@ -156,9 +186,27 @@ def run_script():
     x_values, y_values = datasets[name]
 
     try:
-        params, fig, ax = betas_fitter.fitter(x_values, y_values, name, x_label=x_label_var.get(), y_label=y_label_var.get(), plot_error=plot_error.get(), log_scale=log_scale.get(), minmax=minmax.get())
-        param_table.delete(*param_table.get_children())
-        param_table.insert("", "end", values=("fit", params[0], params[1], params[2], params[3]))
+        result = betas_fitter.fitter(
+            x_values, y_values, name,
+            x_label=x_label_var.get(),
+            y_label=y_label_var.get(),
+            plot_error=plot_error.get(),
+            log_scale=log_scale.get(),
+            minmax=minmax.get()
+        )
+
+        if isinstance(result, tuple) and len(result) == 5:
+            params, params_max, params_min, fig, ax = result
+            param_table.delete(*param_table.get_children())
+            param_table.insert("", "end", values=("fit", *params))
+            param_table.insert("", "end", values=("fit max", *params_max))
+            param_table.insert("", "end", values=("fit min", *params_min))
+        elif isinstance(result, tuple) and len(result) == 3:
+            params, fig, ax = result
+            param_table.delete(*param_table.get_children())
+            param_table.insert("", "end", values=("fit", *params))
+        else:
+            raise ValueError(f"Unexpected return from fitter: got {type(result)} len={len(result) if isinstance(result,tuple) else 'N/A'}")
 
         for widget in plot_frame.winfo_children():
             widget.destroy()
@@ -284,7 +332,14 @@ def edit_param_cell(event):
             messagebox.showerror("Errorr", f"Non numerical value : {new_val}")
             return
         param_table.set(item_id, column, new_val)
-        current_params[col_index] = fval  # update current_params
+
+        if col_index == 0:
+            entry.destroy()
+            return
+        
+        param_idx = col_index - 1
+        if 0 <= param_idx < len(current_params):
+            current_params[param_idx] = fval
         entry.destroy()
 
     entry.bind("<Return>", save_edit)
@@ -298,7 +353,7 @@ def save_param_edits():
     if not children:
         return
     item_id = children[0]  # on n'a qu'une ligne dans param_table
-    for col_index, col in enumerate(param_columns):
+    for col_index, col in enumerate(param_columns[1:]):
         val = param_table.set(item_id, col)
         try:
             current_params[col_index] = float(val.replace(',', '.'))
@@ -412,7 +467,6 @@ tk.Button(nav_frame, text="◀", command=prev_dataset, width=4).pack(side="left"
 dataset_label = tk.Label(nav_frame, text="No dataset")
 dataset_label.pack(side="left", padx=10)
 tk.Button(nav_frame, text="▶", command=next_dataset, width=4).pack(side="left", padx=5)
-tk.Button(scrollable_frame, text="Add row", command=add_row).pack(pady=5)
 
 # Tableau de données
 columns = ("x", "y")
@@ -422,6 +476,11 @@ for col in columns:
     data_table.column(col, width=120)
 data_table.pack(pady=5)
 data_table.bind("<Double-1>", lambda e: edit_cell(data_table, e))
+
+data_management_frame = tk.Frame(scrollable_frame)
+data_management_frame.pack(pady=5)
+tk.Button(data_management_frame, text="+", font=('Helvetica',14,"bold"), command=add_row).pack(side='left', padx=5)
+tk.Button(data_management_frame, text="-", font=('Helvetica',14,"bold"), command=delete_row).pack(side='left', padx=5)
 
 # Label of axes
 axis_container = tk.Frame(scrollable_frame)
@@ -451,12 +510,34 @@ tk.Checkbutton(generate_frame, text="Plot with error", variable=plot_error).pack
 tk.Checkbutton(generate_frame, text="Plot with Min-Max", variable=minmax).pack(side="left", padx=5)
 tk.Button(generate_frame, text="Generate plot", command=run_script).pack(side="right", padx=5)
 
+# Essai de tableau affichable
+test_frame = tk.Frame(scrollable_frame)
+test_frame.pack(pady=5)
+sub_frame = tk.Frame(test_frame)
+sub_table = ttk.Treeview(sub_frame, columns='test', show='headings')
+sub_table.pack(pady=5)
+
+def toggle_minmax(*args):
+    if minmax.get():
+        test_frame.pack(pady=5, fill='x', before=param_table)
+        sub_frame.pack(pady=5, fill="x")
+    else:
+        sub_frame.pack_forget()
+        test_frame.pack_forget()
+    # force la mise à jour de la zone scrollable pour que le widget apparaisse/disparaisse
+    try:
+        update_scrollregion()
+    except Exception:
+        canvas.update_idletasks()
+minmax.trace_add("write", toggle_minmax)
+
+
 # Tableau des paramètres
 param_columns = ("","a", "b", "x min", "x max")
-param_table = ttk.Treeview(scrollable_frame, columns=param_columns, show="headings", height=1)
+param_table = ttk.Treeview(scrollable_frame, columns=param_columns, show="headings", height=3)
 for col in param_columns:
     param_table.heading(col, text=col)
-    w = 50 if col == "" else 80
+    w = 50 if col == "" else 110
     param_table.column(col, width=w, anchor="center", stretch=True)
 param_table.pack(pady=5)
 param_table.bind("<Double-1>", edit_param_cell)

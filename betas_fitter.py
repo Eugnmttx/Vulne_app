@@ -55,7 +55,10 @@ def fitter(xs, Fs, name, x_label=None, y_label=None, plot_error=True, log_scale=
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
 
-    return np.array([a, b, xmin, xmax]), fig, ax
+    if minmax == True:
+        return np.array([a, b, xmin, xmax]), np.array(params_max), np.array(params_min), fig, ax
+    else:
+        return np.array([a, b, xmin, xmax]), fig, ax
 
 def manual_fig(params, xs, Fs, name, x_label = None, y_label = None, plot_error=True, log_scale=True, minmax=False):
     a, b, xmin, xmax = params[0], params[1], params[2], params[3]
@@ -75,7 +78,7 @@ def manual_fig(params, xs, Fs, name, x_label = None, y_label = None, plot_error=
     if log_scale == True:
         ax.set_xscale('log')
     if minmax == True:
-        [support_max, modelF_max], [support_min, modelF_min] = fit_minmax(a,b,xmin,xmax)
+        [support_max, modelF_max], _ , [support_min, modelF_min], _ = fit_minmax(a,b,xmin,xmax)
         ax.plot(support_max, modelF_max, '--r', label='Maximum and Minimum')
         ax.plot(support_min, modelF_min, '--r')
     ax.set_title(name)
@@ -246,5 +249,4 @@ def fit_minmax(a,b,xmin,xmax):
     x_scaled_min = (support_min - xmin_min) / (xmax_min - xmin_min)
     x_scaled_min = np.clip(x_scaled_min, 0, 1)
     modelF_min = beta.cdf(x_scaled_min, a_min, b_min)
-    print(quantiles)
     return [support_max, modelF_max], [a_max, b_max, xmin_max, xmax_max], [support_min, modelF_min], [a_min, b_min, xmin_min, xmax_min]
