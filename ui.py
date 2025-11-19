@@ -529,7 +529,7 @@ def toggle_minmax(*args):
         update_scrollregion()
     except Exception:
         canvas.update_idletasks()
-minmax.trace_add("write", toggle_minmax)
+#minmax.trace_add("write", toggle_minmax)
 
 
 # Tableau des paramètres
